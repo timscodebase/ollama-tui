@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ollama-cli"
+version = "0.2.0"
+description = "A TUI for interacting with local Ollama models."
+authors = [
+    {name = "Tim Smith", email = "tim.smith.hdg@gmail.com"},
+]
+dependencies = [
+    "textual",
+    "ollama",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+license = "MIT"
+
+[project.scripts]
+# This format ensures command-line arguments are passed correctly.
+ollama-cli = "ollama_cli.main:main"
+

@@ -1,0 +1,33 @@
+Screen {
+    align: center middle;
+}
+
+#models_container {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
+
+#chat_container {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
+
+#error_container {
+    width: 100%;
+    height: 100%;
+    align: center middle;
+}
+
+/* Style for the 'no models found' message */
+#no_models_message {
+    text-align: center;
+    color: $text-muted;
+    margin-top: 2;
+}
+
+/* Utility class to hide widgets */
+.hidden {
+    display: none;
+}
