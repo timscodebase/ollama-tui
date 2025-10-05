@@ -41,7 +41,7 @@ ChatScreen > Horizontal {
     height: 1;
     width: auto;
     color: $text-accent;
-    content-align: right middle; /* Corrected syntax */
+    content-align: right middle; /* Corrected comma syntax */
     padding: 0 1;
     border: round $primary;
     display: none;

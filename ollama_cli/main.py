@@ -4,7 +4,7 @@ import os
 import argparse
 import ollama
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, ScrollableContainer
+from textual.containers import Container, Horizontal
 from textual.widgets import (
     Header,
     Footer,
@@ -99,20 +99,15 @@ class ChatScreen(Screen):
     def compose(self) -> ComposeResult:
         """Create child widgets for the screen."""
         yield Header()
-        with Horizontal():
-            yield DirectoryTree(".", id="file_browser")
-            with Container(id="chat_wrapper"):
-                yield ScrollableContainer(Markdown(), id="chat_log_container")
-                with Horizontal():
-                    yield Label("", id="file_status")
-                    yield Static("🤔 Model is thinking...", id="loading_status")
-                yield Input(placeholder="Press Ctrl+O to open file browser...")
+        yield Container(
+            Markdown(""), id="chat_log_container"
+        )
+        yield Static("", id="file_status")
+        yield Static("Model is thinking...", id="loading_status")
+        yield Input(placeholder="Press Ctrl+O to open file browser...")
         yield Footer()
 
     def on_mount(self) -> None:
-        """Called when the screen is first mounted."""
-        self.query_one("#file_browser").display = False
-        self.query_one("#loading_status").display = False
         self.query_one(Input).focus()
 
     def _render_messages(self) -> None:
@@ -131,47 +126,16 @@ class ChatScreen(Screen):
     ) -> None:
         """Called when a file is selected in the directory tree."""
         event.stop()
-        file_path = str(event.path)
+        file_path = event.path
         try:
             with open(file_path, "r", encoding="utf-8") as f:
-                file_content = f.read()
-            prompt_content = f"--- FILE: {file_path} ---\n{file_content}"
-            self.file_context = (f"file '{os.path.basename(file_path)}'", prompt_content)
-            self.query_one("#file_status").update(f"Context: {os.path.basename(file_path)}")
-            self.query_one("#file_browser").display = False
-            self.query_one(Input).focus()
+                self.file_context = (file_path, f.read())
+            self.query_one("#file_status").update(
+                f"Context: {os.path.basename(file_path)}"
+            )
         except Exception as e:
             self.query_one("#file_status").update(f"Error: {e}")
-
-    async def on_directory_tree_directory_selected(
-        self, event: DirectoryTree.DirectorySelected
-    ) -> None:
-        """Called when a directory is selected in the directory tree."""
-        event.stop()
-        dir_path = str(event.path)
-        ignored_dirs = {".git", ".venv", "__pycache__"}
-        ignored_extensions = {".pyc", ".lock"}
-        full_context, file_count = "", 0
-        try:
-            for root, dirs, files in os.walk(dir_path):
-                dirs[:] = [d for d in dirs if d not in ignored_dirs]
-                for file in files:
-                    if os.path.splitext(file)[1] in ignored_extensions:
-                        continue
-                    file_path = os.path.join(root, file)
-                    try:
-                        with open(file_path, "r", encoding="utf-8") as f:
-                            file_content = f.read()
-                        full_context += f"--- FILE: {file_path} ---\n{file_content}\n\n"
-                        file_count += 1
-                    except (IOError, UnicodeDecodeError):
-                        continue
-            self.file_context = (f"{file_count} files from '{os.path.basename(dir_path)}'", full_context)
-            self.query_one("#file_status").update(f"Context: {file_count} files loaded")
-            self.query_one("#file_browser").display = False
-            self.query_one(Input).focus()
-        except Exception as e:
-            self.query_one("#file_status").update(f"Error: {e}")
+        self.app.action_toggle_file_browser()
 
     async def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handles the submission of a user message."""
@@ -179,32 +143,33 @@ class ChatScreen(Screen):
         if not user_message:
             return
 
-        input_widget = self.query_one(Input)
         loading_status = self.query_one("#loading_status")
-        
-        input_widget.disabled = True
+        input_widget = self.query_one(Input)
+
         loading_status.display = True
+        input_widget.disabled = True
 
         self.messages.append({"role": "user", "content": user_message})
         input_widget.clear()
         self.messages.append({"role": "assistant", "content": ""})
         self._render_messages()
 
-        prompt_for_model = user_message
+        prompt = user_message
         if self.file_context:
-            context_name, file_content = self.file_context
-            prompt_for_model = (
-                f"The user has provided context from {context_name}.\n{file_content}\n\n"
-                f"Based on this, respond to: {user_message}"
-            )
+            path, content = self.file_context
+            prompt = f"File: '{os.path.basename(path)}'\n\n---\n\n{content}\n\n---\n\n{user_message}"
             self.file_context = None
             self.query_one("#file_status").update("")
 
-        api_messages = self.messages[:-2] + [{"role": "user", "content": prompt_for_model}]
-        full_response = ""
+        api_messages = self.messages[:-1]
+        api_messages.append({"role": "user", "content": prompt})
+
         try:
             client = ollama.AsyncClient(host=self.app.ollama_host)
-            async for part in await client.chat(model=self.model_name, messages=api_messages, stream=True):
+            full_response = ""
+            async for part in await client.chat(
+                model=self.model_name, messages=api_messages, stream=True
+            ):
                 chunk = part["message"]["content"]
                 if chunk:
                     full_response += chunk
@@ -212,21 +177,12 @@ class ChatScreen(Screen):
                     self._render_messages()
             self.messages[-1]["content"] = full_response
         except Exception as e:
-            self.messages[-1]["content"] = f"An error occurred: {e}"
+            self.messages[-1]["content"] = f"Error: {e}"
         finally:
-            self._render_messages()
             loading_status.display = False
             input_widget.disabled = False
             input_widget.focus()
-
-    def action_toggle_file_browser(self) -> None:
-        """Toggles the visibility of the file browser."""
-        file_browser = self.query_one("#file_browser")
-        file_browser.display = not file_browser.display
-        if file_browser.display:
-            file_browser.focus()
-        else:
-            self.query_one(Input).focus()
+            self._render_messages()
 
     def action_list_models(self) -> None:
         """Switches to the model selection screen."""
@@ -239,6 +195,7 @@ class ChatScreen(Screen):
 
 class ErrorScreen(Screen):
     """A screen to display an error message."""
+
     TITLE = "Error"
     BINDINGS = [("q", "quit", "Quit"), ("b", "back", "Back")]
 
@@ -252,30 +209,46 @@ class ErrorScreen(Screen):
         yield Footer()
 
     def action_back(self) -> None:
+        """An action to go back to the previous screen."""
         self.app.pop_screen()
 
     def action_quit(self) -> None:
+        """An action to quit the app."""
         self.app.exit()
 
 
 class OllamaCLI(App):
     """The main application class for the Ollama TUI."""
+
     TITLE = "Ollama TUI"
     CSS_PATH = "style.css"
-    BINDINGS = [("ctrl+o", "toggle_file_browser_app", "Open File Browser")]
+
+    BINDINGS = [("ctrl+o", "toggle_file_browser", "Open File Browser")]
 
     def __init__(self, host: str):
         super().__init__()
         self.ollama_host = host
+        self.show_file_browser = False
+
+    def compose(self) -> ComposeResult:
+        """Create child widgets for the app."""
+        with Horizontal():
+            yield DirectoryTree(".", id="file_browser")
+            with Container(id="app_container"):
+                yield ModelsScreen()
+        yield Footer()
+
 
     def on_mount(self) -> None:
         """Checks for available models and routes to the appropriate screen."""
+        self.query_one(DirectoryTree).display = False
         try:
             client = ollama.Client(host=self.ollama_host)
             models = client.list().get("models", [])
             if len(models) == 1:
                 model_name = models[0].get("model")
-                self.push_screen(ChatScreen(model_name) if model_name else ModelsScreen())
+                if model_name:
+                    self.push_screen(ChatScreen(model_name))
             else:
                 self.push_screen(ModelsScreen())
         except ollama.ResponseError:
@@ -283,15 +256,21 @@ class OllamaCLI(App):
         except Exception as e:
             self.push_screen(ErrorScreen(str(e)))
 
-    def action_toggle_file_browser_app(self) -> None:
-        """App-level action to toggle the file browser."""
-        if isinstance(self.screen, ChatScreen):
-            self.screen.action_toggle_file_browser()
+    def action_toggle_file_browser(self) -> None:
+        """Toggles the file browser visibility."""
+        self.show_file_browser = not self.show_file_browser
+        self.query_one(DirectoryTree).display = self.show_file_browser
+        if self.show_file_browser:
+            self.query_one(DirectoryTree).focus()
+        else:
+            self.screen.query_one(Input).focus()
 
 
 def main():
     """Parses command-line arguments and runs the application."""
-    parser = argparse.ArgumentParser(description="A TUI for interacting with local Ollama models.")
+    parser = argparse.ArgumentParser(
+        description="A TUI for interacting with local Ollama models."
+    )
     parser.add_argument(
         "--host",
         default=os.environ.get("OLLAMA_HOST", "http://localhost:11434"),
