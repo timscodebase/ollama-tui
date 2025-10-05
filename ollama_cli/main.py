@@ -102,7 +102,7 @@ class ChatScreen(Screen):
         with Horizontal():
             yield DirectoryTree(".", id="file_browser")
             with Container(id="chat_wrapper"):
-                yield ScrollableContainer(Markdown(id="chat_log"))
+                yield ScrollableContainer(Markdown(), id="chat_log_container")
                 with Horizontal():
                     yield Label("", id="file_status")
                     yield Static("🤔 Model is thinking...", id="loading_status")
@@ -112,18 +112,19 @@ class ChatScreen(Screen):
     def on_mount(self) -> None:
         """Called when the screen is first mounted."""
         self.query_one("#file_browser").display = False
+        self.query_one("#loading_status").display = False
         self.query_one(Input).focus()
 
     def _render_messages(self) -> None:
         """Renders the chat history to the Markdown widget."""
-        markdown_widget = self.query_one("#chat_log", Markdown)
+        markdown_widget = self.query_one(Markdown)
         markdown_content = ""
         for message in self.messages:
             role = "You" if message["role"] == "user" else "Model"
             content = message["content"]
             markdown_content += f"**{role}**\n\n{content}\n\n---\n"
         markdown_widget.update(markdown_content)
-        self.query_one(ScrollableContainer).scroll_end(animate=False)
+        self.query_one("#chat_log_container").scroll_end(animate=False)
 
     async def on_directory_tree_file_selected(
         self, event: DirectoryTree.FileSelected

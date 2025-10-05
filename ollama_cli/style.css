@@ -1,33 +1,65 @@
-Screen {
-    align: center middle;
-}
-
-#models_container {
+/* Keep model and error screens centered */
+#models_container, #error_container {
     width: 100%;
     height: 100%;
     align: center middle;
 }
 
-#chat_container {
-    width: 100%;
-    height: 100%;
-    align: center middle;
+/* --- Chat Screen Layout --- */
+
+/* Make the ChatScreen use a vertical layout to stack Header, content, and Footer */
+ChatScreen {
+    layout: vertical;
 }
 
-#error_container {
-    width: 100%;
-    height: 100%;
-    align: center middle;
+/* The main horizontal container (holding the file browser and chat) should expand to fill the available vertical space */
+ChatScreen > Horizontal {
+    height: 1fr;
 }
 
-/* Style for the 'no models found' message */
-#no_models_message {
-    text-align: center;
+/* The chat wrapper should use a vertical layout for its children and fill the available horizontal space */
+#chat_wrapper {
+    layout: vertical;
+    width: 1fr;
+    height: 100%;
+}
+
+/* The scrollable container for the chat log should expand to fill the available vertical space */
+#chat_log_container {
+    width: 100%;
+    height: 1fr;
+}
+
+#file_status {
+    height: 1;
+    width: 1fr;
     color: $text-muted;
-    margin-top: 2;
+    padding: 0 1;
 }
 
-/* Utility class to hide widgets */
-.hidden {
+#loading_status {
+    height: 1;
+    width: auto;
+    color: $text-accent;
+    content-align: right middle; /* Corrected syntax */
+    padding: 0 1;
+    border: round $primary;
     display: none;
 }
+
+/* Style for the disabled input to "gray it out" */
+Input.-disabled {
+    background: $panel-darken-2;
+    color: $text-muted;
+    border: tall $background-lighten-2;
+    text-style: italic;
+}
+
+/* File Browser Styling */
+#file_browser {
+    width: 30;
+    height: 100%;
+    border-right: solid $primary;
+    display: none;
+}
+

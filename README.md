@@ -7,7 +7,7 @@ A Textual app to interact with local Ollama models.
 - List and select from available Ollama models.
 - Chat with Ollama models.
 - Install new models from the Ollama library.
-- Load files into the chat to provide context for analysis.
+- Load single files or entire directories into the chat to provide context for analysis.
 
 ## Usage
 
@@ -29,19 +29,17 @@ uv run ollama-cli --host 'http://127.0.0.1:11434'
 
 - `q`: Quit the application.
 - `r`: Refresh the list of models.
-- `i`: Open the install model screen.
 - `Enter`: Select a model and open the chat screen.
 
 ### Chat Screen
 
 - `q`: Quit the application.
-- `b`: Go back to the models screen.
-- `l`: Toggle the file browser to load a file for analysis.
+- `Ctrl+L`: Go back to the models screen.
+- `Ctrl+O`: Toggle the file browser to load a file or directory for analysis.
 
-### Install Model Screen
+### App-Level
 
-- `q`: Quit the application.
-- `b`: Go back to the models screen.
+- `Ctrl+O`: Toggle the file browser from anywhere in the app.
 
 ### Error Screen
 
